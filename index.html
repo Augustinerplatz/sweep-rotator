@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Date and Name App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .display {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+        .display h1 {
+            margin: 0;
+            color: #333;
+            font-size: 1.5em;
+            font-weight: normal;
+        }
+        .display h2 {
+            margin: 10px 0 0 0;
+            color: #666;
+            font-size: 1.2em;
+        }
+        .input-section {
+            display: flex;
+            gap: 10px;
+        }
+        input[type="date"] {
+            flex: 1;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .loading {
+            text-align: center;
+            color: #666;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="loadingMessage" class="loading">Loading...</div>
+        <div id="mainContent" style="display: none;">
+            <div class="display">
+                <h1><span style="font-weight: normal;">Next person to sweep the kitchen floor: </span><strong id="displayName">Ahmed</strong></h1>
+                <h2><span style="font-weight: normal;">Last date the floor was swept: </span><strong id="displayDate">1 January 2024</strong></h2>
+            </div>
+            <div class="input-section">
+                <input type="date" id="dateInput" max="">
+                <button onclick="updateDisplay()" id="submitBtn">Submit</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const names = ['Ahmed', 'Asif', 'Faisal', 'Imran', 'Richard'];
+
+        // Set max date to today
+        const today = new Date().toISOString().split('T')[0];
+
+        const API_URL = 'https://your-app-name.onrender.com/api';
+
+        async function loadData() {
+            try {
+                const response = await fetch(`${API_URL}/sweep-data`);
+                const data = await response.json();
+                return {
+                    currentIndex: data.current_index,
+                    currentDate: data.current_date
+                };
+            } catch (error) {
+                console.error('Error loading data:', error);
+                // Default values if fetch fails
+                return {
+                    currentIndex: 0,
+                    currentDate: '1 January 2024'
+                };
+            }
+        }
+
+        async function saveData(data) {
+            try {
+                const response = await fetch(`${API_URL}/sweep-data`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        current_index: data.currentIndex,
+                        current_date: data.currentDate
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to save data');
+                }
+                
+                return true;
+            } catch (error) {
+                console.error('Error saving data:', error);
+                alert('Failed to save data. Please try again.');
+                return false;
+            }
+        }
+
+        async function initialize() {
+            const data = await loadData();
+            
+            document.getElementById('displayName').textContent = names[data.currentIndex];
+            document.getElementById('displayDate').textContent = data.currentDate;
+            document.getElementById('dateInput').setAttribute('max', today);
+            
+            document.getElementById('loadingMessage').style.display = 'none';
+            document.getElementById('mainContent').style.display = 'block';
+            
+            return data;
+        }
+
+        let currentData;
+        initialize().then(data => {
+            currentData = data;
+        });
+
+        async function updateDisplay() {
+            const input = document.getElementById('dateInput').value;
+            const submitBtn = document.getElementById('submitBtn');
+            
+            if (!input) {
+                alert('Please enter a date');
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Saving...';
+
+            // Parse and format the date
+            const date = new Date(input);
+            const day = date.getDate();
+            const month = date.toLocaleDateString('en-US', { month: 'long' });
+            const year = date.getFullYear();
+            const formattedDate = `${day} ${month} ${year}`;
+
+            // Rotate to next name
+            const newIndex = (currentData.currentIndex + 1) % names.length;
+
+            const newData = {
+                currentIndex: newIndex,
+                currentDate: formattedDate
+            };
+
+            const saved = await saveData(newData);
+            
+            if (saved) {
+                currentData = newData;
+                document.getElementById('displayDate').textContent = formattedDate;
+                document.getElementById('displayName').textContent = names[newIndex];
+                document.getElementById('dateInput').value = '';
+            }
+
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Submit';
+        }
+
+        // Allow form submission with Enter key
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('dateInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    updateDisplay();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
