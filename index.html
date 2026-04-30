@@ -68,6 +68,25 @@
             color: #666;
             padding: 20px;
         }
+        .overdue {
+            color: #dc3545;
+        }
+        .overdue-stamp {
+            display: inline-block;
+            margin-left: 10px;
+            padding: 2px 8px;
+            border: 2px solid #dc3545;
+            border-radius: 4px;
+            color: #dc3545;
+            font-size: 0.85em;
+            font-weight: bold;
+            letter-spacing: 1px;
+            vertical-align: middle;
+        }
+        #datePickerSection {
+            display: none;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
@@ -79,9 +98,14 @@
                 <h2><span style="font-weight: normal;">The floor was swept on </span><strong id="displayDate">1 January 2024</strong></h2>
                 <h2><span style="font-weight: normal;">Deadline for </span><strong id="deadlineName">Ahmed</strong><span style="font-weight: normal;"> to sweep the floor: </span><strong id="deadlineDate">4 January 2024</strong></h2>
             </div>
-            <div class="input-section">
-                <input type="date" id="dateInput" max="">
-                <button onclick="updateDisplay()" id="submitBtn">Submit</button>
+
+            <button onclick="showDatePicker()" id="logBtn">Log a new sweep</button>
+
+            <div id="datePickerSection">
+                <div class="input-section">
+                    <input type="date" id="dateInput" max="">
+                    <button onclick="updateDisplay()" id="submitBtn">Submit</button>
+                </div>
             </div>
         </div>
     </div>
@@ -89,7 +113,7 @@
     <script>
         const names = ['Ahmed', 'Asif', 'Faisal', 'Imran', 'Richard'];
 
-        // Set max date to today
+        // Set max date to today using local timezone
         const today = new Date().toLocaleDateString('en-CA');
 
         const API_URL = 'https://sweep-rotator-backend.onrender.com/api';
@@ -105,6 +129,43 @@
             const year = date.getFullYear();
             return `${day} ${month} ${year}`;
         }
+
+        function updateDeadlineDisplay(deadlineDateString) {
+            const months = { January:0, February:1, March:2, April:3, May:4, June:5,
+                             July:6, August:7, September:8, October:9, November:10, December:11 };
+            const parts = deadlineDateString.split(' ');
+            const deadlineDate = new Date(parts[2], months[parts[1]], parseInt(parts[0]));
+            const todayDate = new Date();
+            todayDate.setHours(0, 0, 0, 0);
+
+            const deadlineDateEl = document.getElementById('deadlineDate');
+            deadlineDateEl.textContent = deadlineDateString;
+
+            const existingStamp = document.getElementById('overdueStamp');
+            if (existingStamp) existingStamp.remove();
+
+            if (deadlineDate < todayDate) {
+                deadlineDateEl.classList.add('overdue');
+                const stamp = document.createElement('span');
+                stamp.id = 'overdueStamp';
+                stamp.className = 'overdue-stamp';
+                stamp.textContent = 'OVERDUE';
+                deadlineDateEl.parentNode.appendChild(stamp);
+            } else {
+                deadlineDateEl.classList.remove('overdue');
+            }
+        }
+
+        function showDatePicker() {
+            document.getElementById('datePickerSection').style.display = 'block';
+            document.getElementById('logBtn').style.display = 'none';
+        }
+
+        function hideDatePicker() {
+            document.getElementById('datePickerSection').style.display = 'none';
+            document.getElementById('logBtn').style.display = 'inline-block';
+            document.getElementById('dateInput').value = '';
+        }
         
         async function loadData() {
             try {
@@ -116,7 +177,6 @@
                 };
             } catch (error) {
                 console.error('Error loading data:', error);
-                // Default values if fetch fails
                 return {
                     currentIndex: 0,
                     currentDate: '1 January 2024'
@@ -155,7 +215,7 @@
             document.getElementById('displayName').textContent = names[data.currentIndex];
             document.getElementById('displayDate').textContent = data.currentDate;
             document.getElementById('deadlineName').textContent = names[data.currentIndex];
-            document.getElementById('deadlineDate').textContent = getDeadlineDate(data.currentDate);
+            updateDeadlineDisplay(getDeadlineDate(data.currentDate));
             
             document.getElementById('dateInput').setAttribute('max', today);
             
@@ -204,9 +264,8 @@
                 document.getElementById('displayDate').textContent = formattedDate;
                 document.getElementById('displayName').textContent = names[newIndex];
                 document.getElementById('deadlineName').textContent = names[newIndex];
-                document.getElementById('deadlineDate').textContent = getDeadlineDate(formattedDate);
-                
-                document.getElementById('dateInput').value = '';
+                updateDeadlineDisplay(getDeadlineDate(formattedDate));
+                hideDatePicker();
             }
 
             submitBtn.disabled = false;
