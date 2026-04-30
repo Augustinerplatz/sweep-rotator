@@ -94,6 +94,18 @@
 
         const API_URL = 'https://sweep-rotator-backend.onrender.com/api';
 
+        function getDeadlineDate(dateString) {
+            const months = { January:0, February:1, March:2, April:3, May:4, June:5,
+                             July:6, August:7, September:8, October:9, November:10, December:11 };
+            const parts = dateString.split(' ');
+            const date = new Date(parts[2], months[parts[1]], parseInt(parts[0]));
+            date.setDate(date.getDate() + 3);
+            const day = date.getDate();
+            const month = date.toLocaleDateString('en-US', { month: 'long' });
+            const year = date.getFullYear();
+            return `${day} ${month} ${year}`;
+        }
+        
         async function loadData() {
             try {
                 const response = await fetch(`${API_URL}/sweep-data`);
@@ -139,9 +151,12 @@
 
         async function initialize() {
             const data = await loadData();
-            
+
             document.getElementById('displayName').textContent = names[data.currentIndex];
             document.getElementById('displayDate').textContent = data.currentDate;
+            document.getElementById('deadlineName').textContent = names[data.currentIndex];
+            document.getElementById('deadlineDate').textContent = getDeadlineDate(data.currentDate);
+            
             document.getElementById('dateInput').setAttribute('max', today);
             
             document.getElementById('loadingMessage').style.display = 'none';
@@ -188,6 +203,9 @@
                 currentData = newData;
                 document.getElementById('displayDate').textContent = formattedDate;
                 document.getElementById('displayName').textContent = names[newIndex];
+                document.getElementById('deadlineName').textContent = names[newIndex];
+                document.getElementById('deadlineDate').textContent = getDeadlineDate(formattedDate);
+                
                 document.getElementById('dateInput').value = '';
             }
 
