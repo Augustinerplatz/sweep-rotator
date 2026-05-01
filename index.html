@@ -36,6 +36,7 @@
             margin: 10px 0 0 0;
             color: #666;
             font-size: 1.2em;
+            font-weight: normal;
         }
         .input-section {
             display: flex;
@@ -47,18 +48,20 @@
             font-size: 16px;
             border: 1px solid #ddd;
             border-radius: 4px;
+            font-family: 'Lora', serif;
         }
         button {
             padding: 10px 20px;
             font-size: 16px;
-            background-color: #007bff;
+            font-family: 'Lora', serif;
+            background-color: #c85a17;
             color: white;
             border: none;
             border-radius: 4px;
             cursor: pointer;
         }
         button:hover {
-            background-color: #0056b3;
+            background-color: #a84810;
         }
         button:disabled {
             background-color: #ccc;
@@ -95,9 +98,9 @@
         <div id="loadingMessage" class="loading">Loading...</div>
         <div id="mainContent" style="display: none;">
             <div class="display">
-                <h1><span style="font-weight: normal;">Next person to sweep the kitchen floor: </span><strong id="displayName">Ahmed</strong></h1>
-                <h2><span style="font-weight: normal;">The floor was swept on </span><strong id="displayDate">1 January 2024</strong></h2>
-                <h2><span style="font-weight: normal;">Deadline for </span><strong id="deadlineName">Ahmed</strong><span style="font-weight: normal;"> to sweep the floor: </span><strong id="deadlineDate">4 January 2024</strong></h2>
+                <h1>Next person to sweep the kitchen floor:</h1>
+                <h1 id="displayName">Ahmed</h1>
+                <h2>Deadline: <span id="deadlineDate">4 Jan 2024</span><span id="overdueStampContainer"></span></h2>
             </div>
 
             <button onclick="showDatePicker()" id="logBtn">Log a new sweep</button>
@@ -114,7 +117,6 @@
     <script>
         const names = ['Ahmed', 'Asif', 'Faisal', 'Imran', 'Richard'];
 
-        // Set max date to today using local timezone
         const today = new Date().toLocaleDateString('en-CA');
 
         const API_URL = 'https://sweep-rotator-backend.onrender.com/api';
@@ -126,40 +128,41 @@
             const date = new Date(parts[2], months[parts[1]], parseInt(parts[0]));
             date.setDate(date.getDate() + 3);
             const day = date.getDate();
-            const month = date.toLocaleDateString('en-US', { month: 'long' });
+            const month = date.toLocaleDateString('en-US', { month: 'short' });
             const year = date.getFullYear();
             return `${day} ${month} ${year}`;
         }
 
         function updateDeadlineDisplay(deadlineDateString) {
-            const months = { January:0, February:1, March:2, April:3, May:4, June:5,
-                             July:6, August:7, September:8, October:9, November:10, December:11 };
+            const shortMonths = { Jan:0, Feb:1, Mar:2, Apr:3, May:4, Jun:5,
+                                  Jul:6, Aug:7, Sep:8, Oct:9, Nov:10, Dec:11 };
             const parts = deadlineDateString.split(' ');
-            const deadlineDate = new Date(parts[2], months[parts[1]], parseInt(parts[0]));
+            const deadlineDate = new Date(parts[2], shortMonths[parts[1]], parseInt(parts[0]));
             const todayDate = new Date();
             todayDate.setHours(0, 0, 0, 0);
 
-            const deadlineDateEl = document.getElementById('deadlineDate');
-            deadlineDateEl.textContent = deadlineDateString;
+            document.getElementById('deadlineDate').textContent = deadlineDateString;
 
-            const existingStamp = document.getElementById('overdueStamp');
-            if (existingStamp) existingStamp.remove();
+            const stampContainer = document.getElementById('overdueStampContainer');
+            stampContainer.innerHTML = '';
 
             if (deadlineDate < todayDate) {
-                deadlineDateEl.classList.add('overdue');
+                document.getElementById('deadlineDate').classList.add('overdue');
                 const stamp = document.createElement('span');
-                stamp.id = 'overdueStamp';
                 stamp.className = 'overdue-stamp';
                 stamp.textContent = 'OVERDUE';
-                deadlineDateEl.parentNode.appendChild(stamp);
+                stampContainer.appendChild(stamp);
             } else {
-                deadlineDateEl.classList.remove('overdue');
+                document.getElementById('deadlineDate').classList.remove('overdue');
             }
         }
 
         function showDatePicker() {
             document.getElementById('datePickerSection').style.display = 'block';
             document.getElementById('logBtn').style.display = 'none';
+            const dateInput = document.getElementById('dateInput');
+            dateInput.focus();
+            try { dateInput.showPicker(); } catch(e) {}
         }
 
         function hideDatePicker() {
@@ -167,7 +170,7 @@
             document.getElementById('logBtn').style.display = 'inline-block';
             document.getElementById('dateInput').value = '';
         }
-        
+
         async function loadData() {
             try {
                 const response = await fetch(`${API_URL}/sweep-data`);
@@ -178,10 +181,7 @@
                 };
             } catch (error) {
                 console.error('Error loading data:', error);
-                return {
-                    currentIndex: 0,
-                    currentDate: '1 January 2024'
-                };
+                return { currentIndex: 0, currentDate: '1 January 2024' };
             }
         }
 
@@ -189,19 +189,13 @@
             try {
                 const response = await fetch(`${API_URL}/sweep-data`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         current_index: data.currentIndex,
                         current_date: data.currentDate
                     })
                 });
-                
-                if (!response.ok) {
-                    throw new Error('Failed to save data');
-                }
-                
+                if (!response.ok) throw new Error('Failed to save data');
                 return true;
             } catch (error) {
                 console.error('Error saving data:', error);
@@ -212,29 +206,21 @@
 
         async function initialize() {
             const data = await loadData();
-
             document.getElementById('displayName').textContent = names[data.currentIndex];
-            document.getElementById('displayDate').textContent = data.currentDate;
-            document.getElementById('deadlineName').textContent = names[data.currentIndex];
             updateDeadlineDisplay(getDeadlineDate(data.currentDate));
-            
             document.getElementById('dateInput').setAttribute('max', today);
-            
             document.getElementById('loadingMessage').style.display = 'none';
             document.getElementById('mainContent').style.display = 'block';
-            
             return data;
         }
 
         let currentData;
-        initialize().then(data => {
-            currentData = data;
-        });
+        initialize().then(data => { currentData = data; });
 
         async function updateDisplay() {
             const input = document.getElementById('dateInput').value;
             const submitBtn = document.getElementById('submitBtn');
-            
+
             if (!input) {
                 alert('Please enter a date');
                 return;
@@ -243,28 +229,20 @@
             submitBtn.disabled = true;
             submitBtn.textContent = 'Saving...';
 
-            // Parse and format the date
             const date = new Date(input);
             const day = date.getDate();
             const month = date.toLocaleDateString('en-US', { month: 'long' });
             const year = date.getFullYear();
             const formattedDate = `${day} ${month} ${year}`;
 
-            // Rotate to next name
             const newIndex = (currentData.currentIndex + 1) % names.length;
-
-            const newData = {
-                currentIndex: newIndex,
-                currentDate: formattedDate
-            };
+            const newData = { currentIndex: newIndex, currentDate: formattedDate };
 
             const saved = await saveData(newData);
-            
+
             if (saved) {
                 currentData = newData;
-                document.getElementById('displayDate').textContent = formattedDate;
                 document.getElementById('displayName').textContent = names[newIndex];
-                document.getElementById('deadlineName').textContent = names[newIndex];
                 updateDeadlineDisplay(getDeadlineDate(formattedDate));
                 hideDatePicker();
             }
@@ -273,12 +251,20 @@
             submitBtn.textContent = 'Submit';
         }
 
-        // Allow form submission with Enter key
+        // Hide date picker if user clicks away
+        document.addEventListener('click', function(e) {
+            const datePickerSection = document.getElementById('datePickerSection');
+            const logBtn = document.getElementById('logBtn');
+            if (datePickerSection.style.display === 'block' &&
+                !datePickerSection.contains(e.target) &&
+                e.target !== logBtn) {
+                hideDatePicker();
+            }
+        });
+
         document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('dateInput').addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    updateDisplay();
-                }
+                if (e.key === 'Enter') { updateDisplay(); }
             });
         });
     </script>
